@@ -3,13 +3,14 @@ package alternativa.test.task1;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-import static alternativa.test.task1.SimplifiedMatchMaker.WaitingPlayer.byWaitTimeReverse;
-import static alternativa.test.task1.SimplifiedMatchMaker.WaitingPlayer.playersCompat;
 
-class SimplifiedMatchMaker {
+class SimplifiedMatchMaker implements MatchMaker {
 
     private final static int MATCH_PLAYERS_COUNT = 8;
     private final static int OTHER_RANKS_ALLOW_TIMEOUT = 5000;
+    private final static int MIN_RANK = 1;
+    private final static int MAX_RANK = 30;
+
 
 
     private final Deque<WaitingPlayer>[] waitingPlayers;
@@ -24,27 +25,27 @@ class SimplifiedMatchMaker {
         this.matchListener = matchCreatedListener;
 
         //create different rank deque for all ranks
-        waitingPlayers = new Deque[Player.MAX_RANK - Player.MIN_RANK + 1];
+        waitingPlayers = new Deque[MAX_RANK - MIN_RANK + 1];
         for (int i = 0; i < waitingPlayers.length; i++){
             waitingPlayers[i] = new ConcurrentLinkedDeque<>();
         }
     }
 
 
-    void startMatchMaking(){
+    public void startMatchMaking(){
         if (selectorThread != null) selectorThread.shutdown();
         selectorThread = new MatchSelectorThread();
         selectorThread.start();
     }
 
 
-    void stopMatchMaking(){
+    public void stopMatchMaking(){
         if (selectorThread != null) selectorThread.shutdown();
     }
 
 
-    void registerPlayer(int uid, int rank){
-        Deque<WaitingPlayer> d = waitingPlayers[rank-Player.MIN_RANK];
+    public void registerPlayer(int uid, int rank){
+        Deque<WaitingPlayer> d = waitingPlayers[rank-MIN_RANK];
         synchronized (d){
             d.add(new WaitingPlayer(uid,rank, System.currentTimeMillis()));
         }
@@ -62,6 +63,19 @@ class SimplifiedMatchMaker {
         if (matchListener != null) matchListener.onMatchCreated(players);
     }
 
+
+    private static boolean playersCompat(WaitingPlayer p1, WaitingPlayer p2, long time){
+        if (p1 == p2) return true;
+        if (p1.rank == p2.rank) return true;
+        return (Math.abs(p1.rank - p2.rank)<=(time-p1.enterTime)/ OTHER_RANKS_ALLOW_TIMEOUT
+                && Math.abs(p1.rank - p2.rank)<=(time-p2.enterTime)/ OTHER_RANKS_ALLOW_TIMEOUT);
+    }
+
+    final static Comparator<WaitingPlayer> byWaitTimeReverse = (o1, o2) -> {
+        if (o1.enterTime > o2.enterTime) return 1;
+        if (o1.enterTime < o2.enterTime) return -1;
+        return 0;
+    };
 
     private class MatchSelectorThread extends Thread{
         private volatile boolean run = true;
@@ -297,30 +311,7 @@ class SimplifiedMatchMaker {
     }
 
 
-    static class WaitingPlayer extends Player{
-        final long enterTime;
 
-        WaitingPlayer(int uid, int rank, long enterTime) {
-            super(uid,rank);
-            this.enterTime = enterTime;
-        }
 
-        final static Comparator<WaitingPlayer> byWaitTimeReverse = (o1, o2) -> {
-            if (o1.enterTime > o2.enterTime) return 1;
-            if (o1.enterTime < o2.enterTime) return -1;
-            return 0;
-        };
-
-        static boolean playersCompat(WaitingPlayer p1, WaitingPlayer p2, long time){
-            if (p1 == p2) return true;
-            if (p1.rank == p2.rank) return true;
-            return (Math.abs(p1.rank - p2.rank)<=(time-p1.enterTime)/ OTHER_RANKS_ALLOW_TIMEOUT
-                    && Math.abs(p1.rank - p2.rank)<=(time-p2.enterTime)/ OTHER_RANKS_ALLOW_TIMEOUT);
-        }
-    }
-
-    interface OnMatchCreatedListener {
-        void onMatchCreated(Player... players);
-    }
 
 }

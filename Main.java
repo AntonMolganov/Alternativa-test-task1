@@ -9,19 +9,33 @@ public class Main {
         final Random random = new Random();
 
         //generating available game players pool
+        int MATCH_PLAYERS_COUNT = 10;
+        int MATCH_PLAYER_MIN_RANK = 1;
+        int MATCH_PLAYER_MAX_RANK = 30;
+        int RANK_INCREASE_TIMEOUT = 5000;
         List<Player> availablePlayers = Collections.synchronizedList(new LinkedList<>());
         int PLAYERS_QTY = 1000000;
+
+
+        //emulate real spreading - 1 rank is most, 30 rank is least
+        int rank_count = MATCH_PLAYER_MAX_RANK-MATCH_PLAYER_MIN_RANK+1;
+        double rank_sum = rank_count*(MATCH_PLAYER_MAX_RANK+MATCH_PLAYER_MIN_RANK)/2f;
+        double[] spread_borders= new double[rank_count];
+        double next_border_sum = 0;
+        for (int i=0; i<spread_borders.length;i++){
+            spread_borders[i] = next_border_sum + (MATCH_PLAYER_MAX_RANK-i+MATCH_PLAYER_MIN_RANK-1)/rank_sum;
+            next_border_sum = spread_borders[i];
+        }
+
 
         for (int i = 0 ; i < PLAYERS_QTY; i++){
 
             //emulate real spreading - 1 rank is most, 30 rank is least
-            //hardcoded spread borders for 30 ranks calculated outside
-            final double[] spread_borders_30_ranks = {0.064516129,0.1268817204,0.1870967742,0.2451612903,0.3010752688,0.3548387097,0.4064516129,0.4559139785,0.5032258065,0.5483870968,0.5913978495,0.6322580645,0.6709677419,0.7075268817,0.7419354839,0.7741935484,0.8043010753,0.8322580645,0.8580645161,0.8817204301,0.9032258065,0.9225806452,0.9397849462,0.9548387097,0.9677419355,0.9784946237,0.9870967742,0.9935483871,0.9978494624,1};
             double d = Math.random();
-            int rank = Player.MIN_RANK;
-            for (int j = Player.MIN_RANK; j <= Player.MAX_RANK; j++){
+            int rank = MATCH_PLAYER_MIN_RANK;
+            for (int j = MATCH_PLAYER_MIN_RANK; j <= MATCH_PLAYER_MAX_RANK; j++){
                 rank = j;
-                if (d < spread_borders_30_ranks[j-1]) {
+                if (d < spread_borders[j-1]) {
                     break;
                 }
             }
@@ -33,9 +47,8 @@ public class Main {
         }
 
 
-        SimplifiedMatchMaker matchMaker = new SimplifiedMatchMaker((Player... players) -> {
-
-//            Log in nice format
+        MatchMaker.OnMatchCreatedListener listener = players -> {
+            //            Log in nice format
 //            StringBuilder sb = new StringBuilder("Match created, ");
 //            sb.append("time:").append(System.currentTimeMillis());
 //            for (Player p : players){
@@ -59,7 +72,10 @@ public class Main {
             for (Player p : players){
                 availablePlayers.add(new Player(p.uid, p.rank));
             }
-        });
+        };
+
+//        MatchMaker matchMaker = new SimplifiedMatchMaker(listener);
+        MatchMaker matchMaker = new NotExactlySimplifiedMatchMaker(MATCH_PLAYERS_COUNT, MATCH_PLAYER_MIN_RANK, MATCH_PLAYER_MAX_RANK, RANK_INCREASE_TIMEOUT, listener);
         matchMaker.startMatchMaking();
 
 
