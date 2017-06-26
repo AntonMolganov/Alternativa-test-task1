@@ -9,7 +9,7 @@ public class Main {
         final Random random = new Random();
 
         //generating available game players pool
-        int MATCH_PLAYERS_COUNT = 10;
+        int MATCH_PLAYERS_COUNT = 8;
         int MATCH_PLAYER_MIN_RANK = 1;
         int MATCH_PLAYER_MAX_RANK = 30;
         int RANK_INCREASE_TIMEOUT = 5000;

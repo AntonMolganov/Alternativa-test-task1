@@ -116,13 +116,16 @@ class NotExactlySimplifiedMatchMaker implements MatchMaker{
                     }
 
                 }
-                //simple cases done. no more than matchPlayerCount*rank count = 210 players left in all rank queues
+                //simple cases done. no more than matchPlayerCount*rank count left in all rank queues, = 210 players for task case
 
 
-                if (playersLeft.size() ==0) continue;
+                if (playersLeft.size() < matchPlayerCount) continue;
 
 
                 //work around hard cases (i.e. players with different ranks)
+                //sorting to make better wait times
+                playersLeft.sort(byWaitTimeReverse);
+
                 //normally do look over only once
                 boolean doLookOver = true;
                 while (doLookOver){
@@ -132,9 +135,10 @@ class NotExactlySimplifiedMatchMaker implements MatchMaker{
                     int size = playersLeft.size();
                     Set<Integer>[] compatSets = new Set[size];
 
-                    for (int i = 0; i < size; i++) compatSets[i] = new HashSet<>();
+                    for (int i = 0; i < size; i++) compatSets[i] = new LinkedHashSet<>();
 
-                    Set<Integer> suspects = new HashSet<>();
+                    Set<Integer> suspects = new LinkedHashSet<>();
+
                     for (int i = 0; i < size; i++){
                         for ( int j = i; j < size; j++){
                             if (playersCompat(playersLeft.get(i), playersLeft.get(j), now)){
@@ -146,7 +150,7 @@ class NotExactlySimplifiedMatchMaker implements MatchMaker{
                     }
 
                     //some logic, hard to make short explanation
-                    Set<Integer> found = new HashSet<>();
+                    Set<Integer> found = new LinkedHashSet<>();
                     found = find(suspects, compatSets, found);
 
 
@@ -177,13 +181,13 @@ class NotExactlySimplifiedMatchMaker implements MatchMaker{
 
                 Set<Integer> s = compatSets[i];
 
-                Set<Integer> intersection = new HashSet<>(suspects);
+                Set<Integer> intersection = new LinkedHashSet<>(suspects);
                 intersection.retainAll(s);
 
 
                 if (intersection.size() < matchPlayerCount) continue;
 
-                Set<Integer> newFound = new HashSet<>(found);
+                Set<Integer> newFound = new LinkedHashSet<>(found);
                 newFound.add(i);
                 if (newFound.size() >= matchPlayerCount){
                     return newFound;
@@ -195,12 +199,19 @@ class NotExactlySimplifiedMatchMaker implements MatchMaker{
             return null;
         }
 
-
-
         void shutdown(){
             run = false;
         }
+
+        final Comparator<WaitingPlayer> byWaitTimeReverse = (o1, o2) -> {
+            if (o1.enterTime > o2.enterTime) return 1;
+            if (o1.enterTime < o2.enterTime) return -1;
+            return 0;
+        };
+
     }
+
+
 
 
 
